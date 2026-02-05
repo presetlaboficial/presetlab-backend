@@ -21,7 +21,25 @@ const { calculateTotal } = require("./src/services/product.service");
 
 const app = express();
 
-app.use(cors({ origin: process.env.FRONTEND_URL }));
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      const allowedOrigins = [
+        process.env.FRONTEND_URL,
+        "https://preset-lab.vercel.app",
+        "http://localhost:4200",
+      ];
+
+      if (!origin || allowedOrigins.includes(origin.replace(/\/$/, ""))) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  }),
+);
 
 app.use((req, res, next) => {
   if (req.originalUrl === "/webhook") {
