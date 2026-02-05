@@ -6,7 +6,13 @@ const { initializeApp, cert } = require("firebase-admin/app");
 const { getFirestore } = require("firebase-admin/firestore");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
-const serviceAccount = require("./service-account.json");
+let serviceAccount;
+
+if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+  serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+} else {
+  serviceAccount = require("./service-account.json");
+}
 initializeApp({ credential: cert(serviceAccount) });
 const db = getFirestore();
 
@@ -43,7 +49,7 @@ app.post("/create-checkout-session", async (req, res) => {
         price_data: {
           currency: "brl",
           product_data: { name: item.name },
-          unit_amount: Math.round(item.price * 100), 
+          unit_amount: Math.round(item.price * 100),
         },
         quantity: item.quantity || 1,
       })),
@@ -70,27 +76,31 @@ app.post("/create-checkout-session", async (req, res) => {
 });
 
 // --- WEBHOOK DO STRIPE ---
-app.post("/webhook", express.raw({ type: "application/json" }), async (req, res) => {
-  const sig = req.headers["stripe-signature"];
-  let event;
+app.post(
+  "/webhook",
+  express.raw({ type: "application/json" }),
+  async (req, res) => {
+    const sig = req.headers["stripe-signature"];
+    let event;
 
-  try {
-    event = stripe.webhooks.constructEvent(
-      req.body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET
-    );
-  } catch (err) {
-    return res.status(400).send(`Webhook Error: ${err.message}`);
-  }
+    try {
+      event = stripe.webhooks.constructEvent(
+        req.body,
+        sig,
+        process.env.STRIPE_WEBHOOK_SECRET,
+      );
+    } catch (err) {
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
 
-  if (event.type === "checkout.session.completed") {
-    const session = event.data.object;
-    await updateOrderToPaid(session);
-  }
+    if (event.type === "checkout.session.completed") {
+      const session = event.data.object;
+      await updateOrderToPaid(session);
+    }
 
-  res.json({ received: true });
-});
+    res.json({ received: true });
+  },
+);
 
 async function updateOrderToPaid(session) {
   const orderId = session.metadata.orderId;
