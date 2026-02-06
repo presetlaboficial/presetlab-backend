@@ -33,7 +33,7 @@ exports.createCheckout = async (req, res) => {
       total,
       status: "pendente",
       stripeSessionId: session.id,
-      stripeUrl: session.url, 
+      stripeUrl: session.url,
       createdAt: new Date(),
     });
 
@@ -70,4 +70,48 @@ exports.handleWebhook = async (req, res) => {
   }
 
   res.json({ received: true });
+};
+
+// Lida com links de download
+exports.getDownloadLink = async (req, res) => {
+  try {
+    const { orderId, productId } = req.params;
+    const userId = req.user.uid; 
+
+    const orderDoc = await db.collection("orders").doc(orderId).get();
+    const order = orderDoc.data();
+
+    if (!order || order.userId !== userId || order.status !== "pago") {
+      return res.status(403).json({ error: "Acesso negado." });
+    }
+
+    const purchasedItem = order.items.find(
+      (item) => item.productId === productId,
+    );
+    if (!purchasedItem) {
+      return res
+        .status(404)
+        .json({ error: "Produto não consta neste pedido." });
+    }
+
+    const productDoc = await db.collection("products").doc(productId).get();
+    const productData = productDoc.data();
+
+    const isFullVersion = purchasedItem.name.includes("(+ Plugins)");
+
+    const finalLink = isFullVersion
+      ? productData.downloadUrlFull
+      : productData.downloadUrl;
+
+    if (!finalLink) {
+      return res
+        .status(404)
+        .json({ error: "Arquivo não configurated para esta versão." });
+    }
+
+    // 5. Retorna o link para o Angular
+    res.json({ url: finalLink });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 };

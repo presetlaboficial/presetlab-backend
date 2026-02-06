@@ -1,24 +1,21 @@
 const admin = require("firebase-admin");
 
-const checkAdmin = async (req, res, next) => {
+const checkAuth = async (req, res, next) => {
   const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith("Bearer "))
-    return res.status(401).send("Unauthorized");
 
-  const token = authHeader.split(" ")[1];
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Não autorizado" });
+  }
+
+  const token = authHeader.split("Bearer ")[1];
+
   try {
     const decodedToken = await admin.auth().verifyIdToken(token);
-
-    console.log("E-mail do Token:", decodedToken.email, "| Admin Claim:", decodedToken.admin);
-
-    if (decodedToken.admin === true) {
-      next();
-    } else {
-      res.status(403).send("Forbidden: Not an admin");
-    }
+    req.user = decodedToken; 
+    next();
   } catch (error) {
-    res.status(401).send("Invalid Token");
+    res.status(401).json({ error: "Token inválido" });
   }
 };
 
-module.exports = { checkAdmin };
+module.exports = { checkAuth };
