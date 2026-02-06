@@ -4,6 +4,7 @@ const cors = require("cors");
 
 require("./src/config/firebase");
 const adminRoutes = require("./src/routes/admin.routes");
+const productRoutes = require("./src/routes/product.routes");
 const checkoutRoutes = require("./src/routes/checkout.routes");
 const orderController = require("./src/controllers/order.controller");
 
@@ -35,6 +36,7 @@ app.post(
 app.use(express.json());
 
 // Rotas
+app.use("/products", productRoutes);
 app.use("/admin", adminRoutes);
 app.use("/checkout", checkoutRoutes);
 
