@@ -33,6 +33,7 @@ exports.createCheckout = async (req, res) => {
       total,
       status: "pendente",
       stripeSessionId: session.id,
+      stripeUrl: session.url, 
       createdAt: new Date(),
     });
 
